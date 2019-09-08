@@ -1,5 +1,6 @@
-use ggez::event::{self, EventHandler};
+use ggez::event::{self, *};
 use ggez::{graphics, Context, ContextBuilder, GameResult};
+use rand::Rng;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Cell {
@@ -8,14 +9,14 @@ pub struct Cell {
 
 impl Cell {
     fn get_color(&self) -> graphics::Color {
-        unimplemented!();
+        graphics::Color::from_rgb_u32(self.value)
     }
 }
 
 pub struct CellRenderer {
     width: u32,
     height: u32,
-    cells: Vec<Cell>
+    cells: Vec<Cell>,
 }
 
 impl CellRenderer {
@@ -27,35 +28,62 @@ impl CellRenderer {
 impl CellRenderer {
     fn new(_ctx: &mut Context, width: u32, height: u32) -> CellRenderer {
         let cells = (0..width * height)
-            .map(|i| {
-                Cell { value: 0 }
+            .map(|_i| {
+                let val = rand::thread_rng().gen_range(0, std::u32::MAX);
+                Cell { value: val }
             })
             .collect();
 
         CellRenderer {
             width,
             height,
-            cells
+            cells,
         }
     }
 
     fn tick(&mut self, _ctx: &mut Context) -> GameResult<()> {
+        // for x in 0..self.width {
+        //     for y in 0..self.height {
+        //         let idx = self.get_index(x, y);
+        //         let cell = &mut self.cells[idx];
+
+        //         cell.value = rand::thread_rng().gen_range(0,std::u32::MAX);
+        //     }
+        // }
+
+        let idx = rand::thread_rng().gen_range(0, self.width * self.height) as usize;
+        let cell = &mut self.cells[idx];
+        cell.value = rand::thread_rng().gen_range(0, std::u32::MAX);
 
         Ok(())
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
-        let mb = &mut graphics::MeshBuilder::new();
+        let screen_coords = graphics::screen_coordinates(ctx);
+        let cell_width = screen_coords.w / self.width as f32;
+        let cell_height = screen_coords.h / self.height as f32;
 
+        let mb = &mut graphics::MeshBuilder::new();
         for x in 0..self.width {
             for y in 0..self.height {
                 let idx = self.get_index(x, y);
                 let cell = self.cells[idx];
+
+                let rect = graphics::Rect {
+                    x: x as f32 * cell_width,
+                    y: y as f32 * cell_height,
+                    w: cell_width,
+                    h: cell_height,
+                };
+
+                mb.rectangle(graphics::DrawMode::fill(), rect, cell.get_color());
             }
         }
+        let mesh = mb.build(ctx)?;
+
+        graphics::draw(ctx, &mesh, graphics::DrawParam::default())?;
         Ok(())
     }
-
 }
 
 pub struct AppConfig {
@@ -64,7 +92,7 @@ pub struct AppConfig {
 }
 
 pub struct App {
-    cell_renderer: CellRenderer
+    cell_renderer: CellRenderer,
 }
 
 impl App {
@@ -76,23 +104,38 @@ impl App {
 
 impl EventHandler for App {
     fn update(&mut self, _ctx: &mut Context) -> GameResult<()> {
-        self.cell_renderer.tick(_ctx);
+        self.cell_renderer.tick(_ctx)?;
         Ok(())
     }
 
     fn draw(&mut self, ctx: &mut Context) -> GameResult<()> {
         graphics::clear(ctx, graphics::BLACK);
-        self.cell_renderer.draw(ctx);
+        self.cell_renderer.draw(ctx)?;
         graphics::present(ctx)
+    }
+
+    fn key_down_event(
+        &mut self,
+        ctx: &mut Context,
+        keycode: KeyCode,
+        _keymod: KeyMods,
+        _repeat: bool,
+    ) {
+        match keycode {
+            KeyCode::Q => {
+                ggez::event::quit(ctx);
+            }
+
+            _ => (),
+        }
     }
 }
 
 fn main() {
-    let window_setup = ggez::conf::WindowSetup::default()
-        .title("Joy");
-    let window_mode = ggez::conf::WindowMode::default();
+    let window_setup = ggez::conf::WindowSetup::default().title("Joy");
+    let window_mode = ggez::conf::WindowMode::default().resizable(true);
 
-    let(mut ctx, mut event_loop) = ContextBuilder::new("joy_app", "lwirth")
+    let (mut ctx, mut event_loop) = ContextBuilder::new("joy_app", "lwirth")
         .window_setup(window_setup)
         .window_mode(window_mode)
         .build()
