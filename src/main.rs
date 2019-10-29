@@ -2,6 +2,9 @@ use ggez::event::{self, *};
 use ggez::{graphics, Context, ContextBuilder, GameResult};
 use rand::Rng;
 
+use log::{trace, debug, info, warn, error};
+
+
 #[derive(Clone, Copy, Debug)]
 pub struct Cell {
     value: u32,
@@ -42,14 +45,15 @@ impl CellRenderer {
     }
 
     fn tick(&mut self, _ctx: &mut Context) -> GameResult<()> {
-        // for x in 0..self.width {
-        //     for y in 0..self.height {
-        //         let idx = self.get_index(x, y);
-        //         let cell = &mut self.cells[idx];
+        for x in 0..self.width {
+            for y in 0..self.height {
+                let idx = self.get_index(x, y);
+                let cell = &mut self.cells[idx];
 
-        //         cell.value = rand::thread_rng().gen_range(0,std::u32::MAX);
-        //     }
-        // }
+                cell.value += 1;
+            }
+        }
+
 
         let idx = rand::thread_rng().gen_range(0, self.width * self.height) as usize;
         let cell = &mut self.cells[idx];
@@ -121,6 +125,8 @@ impl EventHandler for App {
         _keymod: KeyMods,
         _repeat: bool,
     ) {
+        trace!("Keypress: {:?}", keycode);
+
         match keycode {
             KeyCode::Q => {
                 ggez::event::quit(ctx);
@@ -132,6 +138,8 @@ impl EventHandler for App {
 }
 
 fn main() {
+    setup_logger().unwrap();
+
     let window_setup = ggez::conf::WindowSetup::default().title("Joy");
     let window_mode = ggez::conf::WindowMode::default().resizable(true);
 
@@ -148,9 +156,33 @@ fn main() {
 
     let mut app = App::new(&mut ctx, &app_config);
 
+    info!("finished app initalization.");
+
     // start gameloop; returns error during execution
     match event::run(&mut ctx, &mut event_loop, &mut app) {
         Ok(_) => println!("clean exit"),
         Err(e) => println!("error occured during execution: {}", e),
     }
+}
+
+fn setup_logger() -> Result<(), fern::InitError> {
+    fern::Dispatch::new()
+        .format(|out, message, record| {
+            out.finish(format_args!(
+                "{}[{}][{}] {}",
+                chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
+                record.target(),
+                record.level(),
+                message
+            ))
+        })
+        .level(log::LevelFilter::Trace)
+        .level_for("ggez", log::LevelFilter::Warn)
+        .level_for("gfx_device_gl", log::LevelFilter::Warn)
+        .chain(std::io::stdout())
+        .chain(fern::log_file("joy.log")?)
+        .apply()?;
+
+    info!("succesfully initalized logger.");
+    Ok(())
 }

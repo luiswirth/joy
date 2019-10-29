@@ -9,3 +9,7 @@ edition = "2018"
 [dependencies]
 rand = "0.7.0"
 ggez = "0.5"
+
+chrono = "0.4.9"
+log = "0.4.8"
+fern = "0.5.9"
