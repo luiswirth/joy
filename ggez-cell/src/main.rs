@@ -1,9 +1,15 @@
+#![feature(ptr_internals)]
+#![feature(allocator_api)]
+#![feature(alloc_layout_extra)]
+
 use ggez::event::{self, *};
 use ggez::{graphics, Context, ContextBuilder, GameResult};
 use rand::Rng;
 
-use log::{trace, debug, info, warn, error};
+use log::{debug, error, info, trace, warn};
 
+
+pub struct Player {}
 
 #[derive(Clone, Copy, Debug)]
 pub struct Cell {
@@ -53,7 +59,6 @@ impl CellRenderer {
                 cell.value += 1;
             }
         }
-
 
         let idx = rand::thread_rng().gen_range(0, self.width * self.height) as usize;
         let cell = &mut self.cells[idx];
@@ -131,10 +136,31 @@ impl EventHandler for App {
             KeyCode::Q => {
                 ggez::event::quit(ctx);
             }
+            KeyCode::P => {
+                if let Err(err) = screenshot(ctx) {
+                    error!("{}", err);
+                }
+            }
+            KeyCode::R => {}
 
             _ => (),
         }
     }
+}
+
+fn screenshot(ctx: &mut Context) -> GameResult<()> {
+    let image = ggez::graphics::screenshot(ctx)?;
+    let path = format!("/{}.png", chrono::Local::now().format("%Y-%m-%d_%H:%M:%S"));
+    let path = std::path::Path::new(&path);
+    image.encode(ctx, ggez::graphics::ImageFormat::Png, path)?;
+    info!(
+        "Saved screenshot to {}",
+        ggez::filesystem::user_config_dir(ctx)
+            .join(path)
+            .to_str()
+            .unwrap()
+    );
+    Ok(())
 }
 
 fn main() {
